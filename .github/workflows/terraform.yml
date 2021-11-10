@@ -1,43 +1,36 @@
 
-name: "Terraform-Apply-Infra-Release"
+name: Terraform Apply
 
-on:
-  push:
-    branches:
-      - master
+on: [push]
 
 jobs:
-  terraform:
-    name: "Terraform"
+  terraform_apply:
     runs-on: ubuntu-latest
-    env:	
-      AWS_ACCESS_KEY_ID: 'AKIARGZPFHSSJRTG2FB2'
-      AWS_SECRET_ACCESS_KEY: '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'
-      AWS_REGION: 'ap-southeast-1'
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v2
+    - uses: actions/checkout@v1
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v1
-        with:
-          cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
+    - name: Install Terraform
+      env:
+        TERRAFORM_VERSION: "0.12.15"
+      run: |
+        tf_version=$TERRAFORM_VERSION
+        wget https://releases.hashicorp.com/terraform/"$tf_version"/terraform_"$tf_version"_linux_amd64.zip
+        unzip terraform_"$tf_version"_linux_amd64.zip
+        sudo mv terraform /usr/local/bin/
+    - name: Verify Terraform version
+      run: terraform --version
 
-      - name: Terraform Init
-        id: init
-        run: terraform init
+    - name: Terraform init
+      env:
+        AWS_ACCESS_KEY_ID: 'AKIARGZPFHSSJRTG2FB2'
+        AWS_SECRET_ACCESS_KEY: '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'
+      run: terraform init -input=false
 
-      - name: Terraform Plan
-        id: plan
-        if: github.event_name == 'push'
-        run: terraform plan -no-color
-        continue-on-error: true
+    - name: Terraform validation
+      run: terraform validate
 
-      - name: Terraform Plan Status
-        if: steps.plan.outcome == 'failure'
-        run: exit 1
-
-      - name: Terraform Apply
-        if: github.ref == 'refs/heads/master' && github.event_name == 'push'
-        run: terraform apply -auto-approve
+    - name: Terraform apply
+      env:
+        AWS_ACCESS_KEY_ID: 'AKIARGZPFHSSJRTG2FB2'
+        AWS_SECRET_ACCESS_KEY: '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'
+      run: terraform apply -auto-approve -input=false
